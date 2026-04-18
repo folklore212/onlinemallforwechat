@@ -1,0 +1,372 @@
+import { useState, useEffect } from 'react';
+import { View, Text, Image, ScrollView } from '@tarojs/components';
+import { AtButton, AtIcon, AtMessage, AtFloatLayout, AtInputNumber } from 'taro-ui';
+import Taro from '@tarojs/taro';
+import './index.scss';
+import cartService from '../../services/cart.service';
+import authService from '../../services/auth.service';
+
+export default function Cart() {
+  const [cartItems, setCartItems] = useState<Array<any>>([]);
+  const [loading, setLoading] = useState(true);
+  const [userInfo, setUserInfo] = useState<any>(null);
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [totalQuantity, setTotalQuantity] = useState(0);
+  const [showClearDialog, setShowClearDialog] = useState(false);
+
+  // 初始化数据
+  useEffect(() => {
+    checkLoginStatus();
+    loadCartData();
+  }, []);
+
+  // 检查登录状态
+  const checkLoginStatus = async () => {
+    const isLoggedIn = authService.isLoggedIn();
+    if (isLoggedIn) {
+      const user = authService.getUserInfo();
+      setUserInfo(user);
+    } else {
+      // 未登录，提示登录
+      Taro.showModal({
+        title: '提示',
+        content: '请先登录',
+        success: (res) => {
+          if (res.confirm) {
+            Taro.switchTab({
+              url: '/pages/my/index',
+            });
+          } else {
+            // 用户取消，返回首页
+            Taro.switchTab({
+              url: '/pages/index/index',
+            });
+          }
+        },
+      });
+    }
+  };
+
+  // 加载购物车数据
+  const loadCartData = async () => {
+    if (!authService.isLoggedIn()) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const items = await cartService.getCart();
+      setCartItems(items);
+      calculateTotals(items);
+    } catch (error) {
+      console.error('加载购物车失败:', error);
+      Taro.showToast({
+        title: '加载失败',
+        icon: 'none',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 计算总金额和总数量
+  const calculateTotals = (items) => {
+    let amount = 0;
+    let quantity = 0;
+    items.forEach((item) => {
+      amount += (item.product?.unitPrice || 0) * item.quantity;
+      quantity += item.quantity;
+    });
+    setTotalAmount(amount);
+    setTotalQuantity(quantity);
+  };
+
+  // 更新购物车项数量
+  const handleUpdateQuantity = async (itemId, newQuantity) => {
+    if (newQuantity < 1) {
+      // 如果数量小于1，则删除该项
+      await handleRemoveItem(itemId);
+      return;
+    }
+
+    try {
+      Taro.showLoading({ title: '更新中...' });
+      const updatedItem = await cartService.updateCartItem(itemId, { quantity: newQuantity });
+
+      // 更新本地状态
+      const newItems = cartItems.map((item) =>
+        item.id === itemId ? { ...item, quantity: newQuantity } : item
+      );
+      setCartItems(newItems);
+      calculateTotals(newItems);
+
+      Taro.showToast({
+        title: '更新成功',
+        icon: 'success',
+      });
+    } catch (error) {
+      console.error('更新数量失败:', error);
+      Taro.showToast({
+        title: error.message || '更新失败',
+        icon: 'none',
+      });
+    } finally {
+      Taro.hideLoading();
+    }
+  };
+
+  // 删除购物车项
+  const handleRemoveItem = async (itemId) => {
+    try {
+      Taro.showLoading({ title: '删除中...' });
+      await cartService.removeCartItem(itemId);
+
+      // 更新本地状态
+      const newItems = cartItems.filter((item) => item.id !== itemId);
+      setCartItems(newItems);
+      calculateTotals(newItems);
+
+      Taro.showToast({
+        title: '删除成功',
+        icon: 'success',
+      });
+    } catch (error) {
+      console.error('删除购物车项失败:', error);
+      Taro.showToast({
+        title: error.message || '删除失败',
+        icon: 'none',
+      });
+    } finally {
+      Taro.hideLoading();
+    }
+  };
+
+  // 清空购物车
+  const handleClearCart = async () => {
+    try {
+      Taro.showLoading({ title: '清空中...' });
+      await cartService.clearCart();
+      setCartItems([]);
+      setTotalAmount(0);
+      setTotalQuantity(0);
+      setShowClearDialog(false);
+      Taro.showToast({
+        title: '购物车已清空',
+        icon: 'success',
+      });
+    } catch (error) {
+      console.error('清空购物车失败:', error);
+      Taro.showToast({
+        title: error.message || '清空失败',
+        icon: 'none',
+      });
+    } finally {
+      Taro.hideLoading();
+    }
+  };
+
+  // 跳转到商品详情
+  const navigateToProductDetail = (productId: number) => {
+    Taro.navigateTo({
+      url: `/pages/product/index?id=${productId}`,
+    });
+  };
+
+  // 去结算
+  const handleCheckout = () => {
+    if (cartItems.length === 0) {
+      Taro.showToast({
+        title: '购物车为空',
+        icon: 'none',
+      });
+      return;
+    }
+
+    // 检查库存
+    const outOfStockItems = cartItems.filter(
+      (item) => item.quantity > (item.product?.stockQuantity || 0)
+    );
+
+    if (outOfStockItems.length > 0) {
+      Taro.showModal({
+        title: '库存不足',
+        content: '部分商品库存不足，请调整数量后重试',
+        showCancel: false,
+      });
+      return;
+    }
+
+    // 跳转到订单确认页
+    Taro.navigateTo({
+      url: '/pages/order/confirm',
+    });
+  };
+
+  // 继续购物
+  const continueShopping = () => {
+    Taro.switchTab({
+      url: '/pages/index/index',
+    });
+  };
+
+  if (!userInfo) {
+    return (
+      <View className='cart'>
+        <View className='empty'>
+          <Text>请先登录</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (loading) {
+    return (
+      <View className='cart'>
+        <View className='loading'>
+          <Text>加载中...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View className='cart'>
+      <AtMessage />
+
+      {/* 头部 */}
+      <View className='header'>
+        <Text className='title'>购物车</Text>
+        {cartItems.length > 0 && (
+          <AtButton
+            size='small'
+            type='secondary'
+            onClick={() => setShowClearDialog(true)}
+          >
+            清空
+          </AtButton>
+        )}
+      </View>
+
+      {/* 购物车列表 */}
+      {cartItems.length === 0 ? (
+        <View className='empty-cart'>
+          <AtIcon value='shopping-cart' size='60' color='#ccc'></AtIcon>
+          <Text className='empty-text'>购物车是空的</Text>
+          <AtButton type='primary' onClick={continueShopping}>
+            去逛逛
+          </AtButton>
+        </View>
+      ) : (
+        <ScrollView className='cart-list' scrollY>
+          {cartItems.map((item) => (
+            <View key={item.id} className='cart-item'>
+              {/* 选择框 */}
+              <View className='item-select'>
+                <AtIcon value='check' size='16' color='#1890ff'></AtIcon>
+              </View>
+
+              {/* 商品图片和信息 */}
+              <View
+                className='item-info'
+                onClick={() => navigateToProductDetail(item.productId)}
+              >
+                <Image
+                  className='item-image'
+                  src={
+                    item.product?.mainImageUrl ||
+                    'https://via.placeholder.com/100x100/eee/999?text=商品图'
+                  }
+                  mode='aspectFill'
+                />
+                <View className='item-details'>
+                  <Text className='item-name' numberOfLines={2}>
+                    {item.product?.name || '未知商品'}
+                  </Text>
+                  <Text className='item-spec'>
+                    {item.selectedSize && `尺码: ${item.selectedSize}`}
+                    {item.selectedSize && item.selectedColor && ' '}
+                    {item.selectedColor && `颜色: ${item.selectedColor}`}
+                  </Text>
+                  <View className='item-price-row'>
+                    <Text className='item-price'>¥{item.product?.unitPrice || 0}</Text>
+                    <Text className='item-stock'>
+                      库存: {item.product?.stockQuantity || 0}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* 数量控制和删除 */}
+              <View className='item-actions'>
+                <View className='quantity-control'>
+                  <AtButton
+                    size='small'
+                    circle
+                    onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+                    disabled={item.quantity <= 1}
+                  >
+                    <AtIcon value='subtract' size='12'></AtIcon>
+                  </AtButton>
+                  <Text className='quantity'>{item.quantity}</Text>
+                  <AtButton
+                    size='small'
+                    circle
+                    onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                    disabled={item.quantity >= (item.product?.stockQuantity || 999)}
+                  >
+                    <AtIcon value='add' size='12'></AtIcon>
+                  </AtButton>
+                </View>
+                <AtButton
+                  size='small'
+                  type='secondary'
+                  onClick={() => handleRemoveItem(item.id)}
+                >
+                  <AtIcon value='trash' size='14'></AtIcon>
+                </AtButton>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      )}
+
+      {/* 底部结算栏 */}
+      {cartItems.length > 0 && (
+        <View className='checkout-bar'>
+          <View className='checkout-left'>
+            <Text className='total-text'>
+              合计: <Text className='total-amount'>¥{totalAmount.toFixed(2)}</Text>
+            </Text>
+            <Text className='total-hint'>共{totalQuantity}件商品</Text>
+          </View>
+          <AtButton type='primary' className='checkout-btn' onClick={handleCheckout}>
+            去结算({totalQuantity})
+          </AtButton>
+        </View>
+      )}
+
+      {/* 清空购物车确认弹窗 */}
+      <AtFloatLayout
+        isOpened={showClearDialog}
+        title='确认清空购物车'
+        onClose={() => setShowClearDialog(false)}
+      >
+        <View className='clear-dialog'>
+          <Text>确定要清空购物车吗？此操作不可撤销。</Text>
+          <View className='dialog-actions'>
+            <AtButton
+              type='secondary'
+              onClick={() => setShowClearDialog(false)}
+            >
+              取消
+            </AtButton>
+            <AtButton type='primary' onClick={handleClearCart}>
+              确定清空
+            </AtButton>
+          </View>
+        </View>
+      </AtFloatLayout>
+    </View>
+  );
+}

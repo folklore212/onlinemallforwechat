@@ -12,7 +12,12 @@ const config = {
   plugins: ['@tarojs/plugin-platform-weapp'],
   defineConstants: {},
   copy: {
-    patterns: [],
+    patterns: [
+      {
+        from: 'src/assets',
+        to: 'assets'
+      }
+    ],
     options: {},
   },
   framework: 'react',

@@ -17,8 +17,7 @@
   "dependencies": {
     "@ant-design/pro-components": "^2.8.10",
     "@umijs/max": "^4.6.45",
-    "antd": "^6.3.6",
-    "umi": "^4.6.45"
+    "antd": "^5.11.2"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
