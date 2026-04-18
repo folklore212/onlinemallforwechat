@@ -1,0 +1,45 @@
+# 构建阶段
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# 复制package文件
+COPY package*.json ./
+
+# 安装依赖（包括开发依赖，用于构建）
+RUN npm ci
+
+# 复制源码
+COPY . .
+
+# 构建应用
+RUN npm run build
+
+# 生产运行阶段
+FROM node:18-alpine
+
+WORKDIR /app
+
+# 创建非root用户
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001 && \
+    mkdir -p /var/uploads /var/log/wechat-shop && \
+    chown -R nodejs:nodejs /app /var/uploads /var/log/wechat-shop
+
+# 从构建阶段复制文件
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
+
+# 切换用户
+USER nodejs
+
+# 暴露端口
+EXPOSE 3000
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {if (r.statusCode !== 200) throw new Error()})"
+
+# 启动命令
+CMD ["node", "dist/main"]

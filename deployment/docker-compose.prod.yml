@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  # MySQL数据库
+  mysql:
+    image: mysql:8.0
+    container_name: wechat-shop-mysql-prod
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_password}
+      MYSQL_DATABASE: wechat_online_shop_prod
+      MYSQL_USER: wechat_prod_user
+      MYSQL_PASSWORD: ${DB_PASSWORD:-wechat_prod_password}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data_prod:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    restart: unless-stopped
+    networks:
+      - wechat-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis缓存
+  redis:
+    image: redis:7-alpine
+    container_name: wechat-shop-redis-prod
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_password}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_prod:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    restart: unless-stopped
+    networks:
+      - wechat-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 后端API服务
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.prod
+    container_name: wechat-shop-backend-prod
+    environment:
+      - NODE_ENV=production
+    ports:
+      - "3000:3000"
+    volumes:
+      - uploads:/var/uploads
+      - logs:/var/log/wechat-shop
+      - ../backend/.env.production:/app/.env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - wechat-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: wechat-shop-nginx-prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/letsencrypt
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ../admin/dist:/usr/share/nginx/html/admin
+      - uploads:/usr/share/nginx/html/uploads
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - wechat-network
+
+networks:
+  wechat-network:
+    driver: bridge
+
+volumes:
+  mysql_data_prod:
+  redis_data_prod:
+  uploads:
+  logs:
