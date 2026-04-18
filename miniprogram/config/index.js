@@ -9,7 +9,7 @@ const config = {
   },
   sourceRoot: 'src',
   outputRoot: 'dist',
-  plugins: ['@tarojs/plugin-platform-weapp'],
+  plugins: ['@tarojs/plugin-framework-react', '@tarojs/plugin-platform-weapp'],
   defineConstants: {},
   copy: {
     patterns: [

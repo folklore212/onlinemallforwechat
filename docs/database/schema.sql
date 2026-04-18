@@ -135,8 +135,8 @@ CREATE TABLE IF NOT EXISTS `system_configs` (
 -- ('admin', '13800138000', 'admin', '系统管理', '管理员');
 
 -- 插入默认分类
-INSERT INTO `categories` (`name`, `description`, `sort_order`) VALUES
-('工作服', '各类工作制服', 1),
-('制服', '企业单位制服', 2),
-('防护服', '安全防护服装', 3),
-('其他', '其他服装', 4);
+INSERT INTO `categories` (`name`, `description`, `sort_order`, `parent_id`) VALUES
+('工作服', '各类工作制服', 1, NULL),
+('制服', '企业单位制服', 2, NULL),
+('防护服', '安全防护服装', 3, NULL),
+('其他', '其他服装', 4, NULL);
