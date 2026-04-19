@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # MySQL测试数据库
+  mysql-test:
+    image: mysql:8.0
+    container_name: wechat-shop-mysql-test
+    environment:
+      MYSQL_ROOT_PASSWORD: test_root_password
+      MYSQL_DATABASE: wechat_shop_test
+      MYSQL_USER: test_user
+      MYSQL_PASSWORD: test_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_test_data:/var/lib/mysql
+      - ../docs/database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    restart: unless-stopped
+    networks:
+      - wechat-test-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Redis测试缓存
+  redis-test:
+    image: redis:7-alpine
+    container_name: wechat-shop-redis-test
+    command: redis-server --requirepass test_redis_password
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_test_data:/data
+    restart: unless-stopped
+    networks:
+      - wechat-test-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # 后端API测试服务
+  backend-test:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.test
+    container_name: wechat-shop-backend-test
+    environment:
+      - NODE_ENV=test
+    ports:
+      - "3001:3000"
+    volumes:
+      - ../backend:/app
+      - ../backend/node_modules:/app/node_modules
+      - uploads_test:/var/uploads
+      - logs_test:/var/log/wechat-shop
+      - ../backend/.env.test:/app/.env
+    depends_on:
+      mysql-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - wechat-test-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  wechat-test-network:
+    driver: bridge
+
+volumes:
+  mysql_test_data:
+  redis_test_data:
+  uploads_test:
+  logs_test:

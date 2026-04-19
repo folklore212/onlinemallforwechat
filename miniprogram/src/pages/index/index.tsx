@@ -9,20 +9,23 @@ import cartService from '../../services/cart.service';
 
 // 轮播图数据（暂时使用静态数据）
 const banners = [
-  { id: 1, image: 'https://via.placeholder.com/750x300/1890ff/ffffff?text=政企制服采购', link: '' },
-  { id: 2, image: 'https://via.placeholder.com/750x300/52c41a/ffffff?text=专业定制服务', link: '' },
-  { id: 3, image: 'https://via.placeholder.com/750x300/faad14/ffffff?text=品质保障', link: '' },
+  { id: 1, image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzUwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDc1MCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9Ijc1MCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiMxODkwZmYiLz48dGV4dCB4PSIzNzUiIHk9IjE1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjI0IiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuWcsOWFseW5v+aKlei9puiuqTwvdGV4dD48L3N2Zz4=', link: '' },
+  { id: 2, image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzUwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDc1MCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9Ijc1MCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiM1MmM0MWEiLz48dGV4dCB4PSIzNzUiIHk9IjE1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjI0IiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPueUqOaXpeihjOaOpeW8gDwvdGV4dD48L3N2Zz4=', link: '' },
+  { id: 3, image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzUwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDc1MCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9Ijc1MCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiNmYWFkMTQiLz48dGV4dCB4PSIzNzUiIHk9IjE1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjI0IiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPue7vOWQiOe1kOWFsyA8L3N2Zz4=', link: '' },
 ];
 
 // 分类网格数据
 const categoryGridItems = [
-  { image: 'https://via.placeholder.com/60x60/1890ff/ffffff?text=工', value: 'work', text: '工作服' },
-  { image: 'https://via.placeholder.com/60x60/52c41a/ffffff?text=制', value: 'uniform', text: '制服' },
-  { image: 'https://via.placeholder.com/60x60/faad14/ffffff?text=防', value: 'protective', text: '防护服' },
-  { image: 'https://via.placeholder.com/60x60/722ed1/ffffff?text=其', value: 'other', text: '其他' },
+  { image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIGZpbGw9IiMxODkwZmYiLz48dGV4dCB4PSIzMCIgeT0iMzAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNiIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7nlKg8L3RleHQ+PC9zdmc+', value: 'work', text: '工作服' },
+  { image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIGZpbGw9IiM1MmM0MWEiLz48dGV4dCB4PSIzMCIgeT0iMzAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNiIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7mrKM8L3RleHQ+PC9zdmc+', value: 'uniform', text: '制服' },
+  { image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIGZpbGw9IiNmYWFkMTQiLz48dGV4dCB4PSIzMCIgeT0iMzAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNiIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7lnKg8L3RleHQ+PC9zdmc+', value: 'protective', text: '防护服' },
+  { image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIGZpbGw9IiM3MjJlZDEiLz48dGV4dCB4PSIzMCIgeT0iMzAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNiIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7kuow8L3RleHQ+PC9zdmc+', value: 'other', text: '其他' },
 ];
 
 export default function Index() {
+  console.log('页面加载，NODE_ENV:', process.env.NODE_ENV);
+  console.log('是否开发环境:', process.env.NODE_ENV === 'development');
+
   const [userInfo, setUserInfo] = useState<any>(null);
   const [products, setProducts] = useState<Array<any>>([]);
   const [categories, setCategories] = useState<Array<any>>([]);
@@ -223,12 +226,12 @@ export default function Index() {
         ) : products.length === 0 ? (
           <View className='empty'>暂无商品</View>
         ) : (
-          <ScrollView className='product-list' scrollX>
+          <ScrollView className='product-list' scrollX enableFlex>
             {products.map((product) => (
               <View key={product.id} className='product-card'>
                 <Image
                   className='product-image'
-                  src={product.mainImageUrl || 'https://via.placeholder.com/200x200/eee/999?text=商品图'}
+                  src={product.mainImageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNlZWUiLz48dGV4dCB4PSIxMDAiIHk9IjEwMCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+5bqU5L+h5ZCI8L3RleHQ+PC9zdmc+'}
                   mode='aspectFill'
                   onClick={() => navigateToProductDetail(product.id)}
                 />

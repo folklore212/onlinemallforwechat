@@ -1,0 +1,31 @@
+# 测试环境Dockerfile - 使用完整Node.js镜像确保crypto模块可用
+FROM node:18-bullseye
+
+WORKDIR /app
+
+# 安装必要的系统依赖
+RUN apt-get update && apt-get install -y \
+    openssl \
+    && rm -rf /var/lib/apt/lists/*
+
+# 复制package文件
+COPY package*.json ./
+
+# 安装所有依赖（包括开发依赖），使用--legacy-peer-deps解决依赖冲突
+RUN npm install --legacy-peer-deps
+
+# 复制源码
+COPY . .
+
+# 创建必要的目录
+RUN mkdir -p /var/uploads /var/log/wechat-shop && \
+    chown -R node:node /app /var/uploads /var/log/wechat-shop
+
+# 切换用户
+USER node
+
+# 暴露端口
+EXPOSE 3000
+
+# 启动命令（开发模式，支持热重载）
+CMD ["npm", "run", "start:dev"]

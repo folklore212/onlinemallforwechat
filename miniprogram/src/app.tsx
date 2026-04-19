@@ -2,17 +2,11 @@ import React, { Component } from 'react';
 import './app.scss';
 import 'taro-ui/dist/style/index.scss';
 
-// 确保React在全局可用
-declare const wx: any;
-if (typeof wx !== 'undefined') {
-  // 小程序环境
-  wx.React = React;
-} else if (typeof global !== 'undefined') {
-  // Node.js或其他环境
-  global.React = React;
+// 确保React在全局可用 - Taro运行时需要
+if (typeof global !== 'undefined') {
+  (global as any).React = React;
 } else if (typeof window !== 'undefined') {
-  // 浏览器环境
-  window.React = React;
+  (window as any).React = React;
 }
 
 class App extends Component {

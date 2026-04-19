@@ -101,13 +101,9 @@ class ProductService {
 
   // 获取热门商品
   async getHotProducts(limit: number = 10): Promise<Product[]> {
-    try {
-      const products = await this.getProducts();
-      return products.slice(0, limit);
-    } catch (error) {
-      console.error('获取热门商品失败:', error);
-      throw error;
-    }
+    console.log('获取热门商品，限制:', limit);
+    const products = await this.getProducts();
+    return products.slice(0, limit);
   }
 
   // 搜索商品

@@ -83,7 +83,7 @@ class CartService {
   // 删除购物车项
   async removeCartItem(cartItemId: number): Promise<void> {
     try {
-      await del(`/cart/items/${cartItemId}`);
+      await del<void>(`/cart/items/${cartItemId}`);
     } catch (error) {
       console.error('删除购物车项失败:', error);
       throw error;
@@ -93,7 +93,7 @@ class CartService {
   // 清空购物车
   async clearCart(): Promise<void> {
     try {
-      await del('/cart/clear');
+      await del<void>('/cart/clear');
     } catch (error) {
       console.error('清空购物车失败:', error);
       throw error;
@@ -117,7 +117,7 @@ class CartService {
       const summary = await this.getCartSummary();
       return summary.totalItems;
     } catch (error) {
-      console.error('计算购物车总数失败:', error);
+      console.error('获取购物车总数失败:', error);
       return 0;
     }
   }
@@ -125,8 +125,8 @@ class CartService {
   // 检查商品是否在购物车中
   async isProductInCart(productId: number): Promise<boolean> {
     try {
-      const cart = await this.getCart();
-      return cart.some((item) => item.productId === productId);
+      const cartItems = await this.getCart();
+      return cartItems.some(item => item.productId === productId);
     } catch (error) {
       console.error('检查商品是否在购物车中失败:', error);
       return false;

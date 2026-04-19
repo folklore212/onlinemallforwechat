@@ -99,9 +99,10 @@
 
 .product-list {
   display: flex;
-  padding: 15px;
-  overflow-x: auto;
+  flex-direction: row;
+  flex-wrap: nowrap;
   white-space: nowrap;
+  padding: 15px;
 }
 
 .product-card {

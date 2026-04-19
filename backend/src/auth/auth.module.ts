@@ -17,12 +17,47 @@ import { User } from '../users/entities/user.entity';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'secret',
-        signOptions: {
-          expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '7d',
-        },
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const expiresIn = configService.get<string>('JWT_EXPIRES_IN');
+        // Convert string like '7d' to seconds, or default to 7 days
+        let expiresInSeconds = 604800; // 7 days in seconds
+
+        if (expiresIn) {
+          if (expiresIn.endsWith('d')) {
+            const days = parseInt(expiresIn.slice(0, -1));
+            if (!isNaN(days)) {
+              expiresInSeconds = days * 24 * 60 * 60;
+            }
+          } else if (expiresIn.endsWith('h')) {
+            const hours = parseInt(expiresIn.slice(0, -1));
+            if (!isNaN(hours)) {
+              expiresInSeconds = hours * 60 * 60;
+            }
+          } else if (expiresIn.endsWith('m')) {
+            const minutes = parseInt(expiresIn.slice(0, -1));
+            if (!isNaN(minutes)) {
+              expiresInSeconds = minutes * 60;
+            }
+          } else if (expiresIn.endsWith('s')) {
+            const seconds = parseInt(expiresIn.slice(0, -1));
+            if (!isNaN(seconds)) {
+              expiresInSeconds = seconds;
+            }
+          } else {
+            const num = parseInt(expiresIn);
+            if (!isNaN(num)) {
+              expiresInSeconds = num;
+            }
+          }
+        }
+
+        return {
+          secret: configService.get<string>('JWT_SECRET') || 'secret',
+          signOptions: {
+            expiresIn: expiresInSeconds,
+          },
+        };
+      },
     }),
   ],
   controllers: [AuthController],

@@ -1,5 +1,5 @@
 import Taro from '@tarojs/taro';
-import { post, get, setToken, clearToken } from '../utils/request';
+import { post, get, put, setToken, clearToken } from '../utils/request';
 
 // 用户信息接口
 export interface UserInfo {
@@ -25,15 +25,11 @@ class AuthService {
   // 微信登录
   async wxLogin(): Promise<LoginResponse> {
     try {
-      // 获取微信code
+      // 获取微信登录code
       const loginRes = await Taro.login();
       const code = loginRes.code;
 
-      if (!code) {
-        throw new Error('获取微信code失败');
-      }
-
-      // 调用后端登录接口
+      // 发送code到后端进行登录
       const data = await post<LoginResponse>('/auth/wx-login', { code });
 
       // 存储token和用户信息

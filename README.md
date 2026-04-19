@@ -36,6 +36,11 @@
 - **分类管理**：商品分类树形结构管理
 - **数据统计**：销售数据统计和报表
 
+### 系统监控
+- **健康检查**：实时监控数据库、Redis、内存等依赖服务状态
+- **性能监控**：内存使用量、响应时间、服务可用性监控
+- **版本信息**：应用版本和运行环境信息查询
+
 ## 技术栈
 
 ### 后端
@@ -44,6 +49,9 @@
 - **缓存**：Redis
 - **认证**：JWT + 微信登录
 - **API文档**：Swagger/OpenAPI
+- **健康检查**：@nestjs/terminus
+- **图像处理**：sharp
+- **测试框架**：Jest
 
 ### 微信小程序
 - **框架**：Taro 4.x + React + TypeScript
@@ -75,7 +83,10 @@ wechat-online-shop/
 │   │   ├── categories/        # 分类管理
 │   │   ├── shopping-cart/     # 购物车
 │   │   ├── orders/            # 订单管理
+│   │   ├── uploads/           # 文件上传模块
+│   │   ├── test/              # 测试相关
 │   │   └── common/            # 通用模块
+│   │       └── health/        # 健康检查模块
 │   └── docker-compose.yml     # 开发环境配置
 ├── miniprogram/               # 微信小程序
 │   ├── src/
@@ -101,8 +112,11 @@ wechat-online-shop/
 │   ├── 数据库设计/             # 数据库设计文档
 │   └── API文档/               # API接口文档
 ├── deployment/                # 部署配置
-│   ├── docker-compose.yml     # 生产环境配置
-│   └── nginx/                 # Nginx配置
+│   ├── docker-compose.dev.yml    # 开发环境配置
+│   ├── docker-compose.prod.yml   # 生产环境配置
+│   ├── docker-compose.test.yml   # 测试环境配置
+│   ├── init.sql                  # 数据库初始化脚本
+│   └── nginx/                    # Nginx配置
 └── README.md                  # 项目说明文档
 ```
 
@@ -115,25 +129,182 @@ wechat-online-shop/
 - Redis 6+
 - Docker & Docker Compose（可选）
 
+### 环境配置详解
+
+项目使用多层环境配置体系，支持开发、测试、生产三种环境：
+
+#### 环境变量文件说明
+
+| 文件 | 用途 | 说明 |
+|------|------|------|
+| `.env.development` | 开发环境 | 连接本地MySQL(3306)和Redis(6379)，适合本地开发 |
+| `.env.test` | 测试环境 | 连接Docker测试服务MySQL(3307)和Redis(6380)，用于自动化测试 |
+| `.env.production` | 生产环境 | **需从`.env.production.example`复制创建**，配置生产数据库 |
+| `.env.example` | 配置模板 | 通用配置模板，可复制创建上述各环境配置文件 |
+| `.env` | 当前环境 | **注意**：当前此文件配置的是测试环境（DB_PORT=3307） |
+
+#### 配置优先级
+1. **环境变量**：系统环境变量优先级最高
+2. **环境文件**：根据`NODE_ENV`加载对应文件（如`NODE_ENV=development`加载`.env.development`）
+3. **Docker挂载**：Docker容器通过卷挂载将环境文件映射为容器内的`.env`
+4. **默认值**：代码中配置的默认值（如`app.module.ts`中的数据库配置）
+
+#### 重要配置项
+- **数据库连接**：`DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`
+- **Redis缓存**：`REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`
+- **JWT认证**：`JWT_SECRET`, `JWT_EXPIRES_IN`（生产环境必须修改！）
+- **微信小程序**：`WX_APP_ID`, `WX_APP_SECRET`（需要真实的小程序AppID）
+- **文件上传**：`UPLOAD_PATH`, `MAX_FILE_SIZE`, `ALLOWED_FILE_TYPES`
+
+#### 创建环境配置文件
+```bash
+# 开发环境
+cp backend/.env.example backend/.env.development
+
+# 测试环境（已存在，包含测试配置）
+# backend/.env.test 已配置为测试环境
+
+# 生产环境
+cp backend/.env.production.example backend/.env.production
+# 编辑 backend/.env.production，配置真实的生产数据库和Redis信息
+```
+
 ### 1. 后端服务启动
 
+项目提供多种启动方式，可根据需求选择：
+
+#### 开发环境启动
+
+**方式一：本地开发模式（推荐）**
 ```bash
 # 进入后端目录
 cd backend
 
+# 使用现有开发环境配置（如不存在则创建）
+cp .env.example .env.development  # 仅第一次需要
+# 编辑 .env.development 文件（默认配置已适合本地开发）
+
 # 安装依赖
 npm install
 
-# 配置环境变量
-cp .env.example .env
-# 编辑.env文件，配置数据库和Redis连接
-
-# 启动开发环境
+# 启动开发服务器（支持热重载）
 npm run start:dev
 
-# 或者使用Docker Compose
-docker-compose up -d
+# 验证服务运行
+curl http://localhost:3000/api/health
 ```
+
+**方式二：Docker辅助开发**
+```bash
+# 启动开发数据库和Redis
+cd deployment
+docker-compose -f docker-compose.dev.yml up -d
+
+# 本地运行后端服务（连接到Docker中的数据库）
+cd ../backend
+npm run start:dev
+```
+
+**方式三：使用示例图片库（可选）**
+```bash
+# 下载开发用示例图片
+./scripts/download-images.sh
+# 图片将保存到 public/uploads/ 目录
+```
+
+#### 测试环境启动
+
+**方式一：自动化测试套件（推荐，完整流程）**
+```bash
+# 运行完整的测试流程：设置环境 → 运行测试 → 清理环境
+./scripts/test/run-tests.sh
+# 包含单元测试、集成测试、端到端测试和健康检查
+```
+
+**方式二：手动测试环境管理**
+```bash
+# 设置测试环境
+./scripts/test/setup-test-env.sh
+# 运行健康检查
+./scripts/test/health-check.sh
+# 清理测试环境
+./scripts/test/cleanup-test-env.sh
+```
+
+**方式三：简单测试运行**
+```bash
+cd backend
+# 运行Jest测试（需要测试环境正在运行）
+npm test
+
+# 查看测试覆盖率
+npm run test:cov
+```
+
+#### 生产环境部署
+
+**方式一：Docker Compose生产部署**
+```bash
+# 创建生产环境配置
+cd backend
+cp .env.production.example .env.production
+# 编辑 .env.production 文件，配置真实的生产数据库和Redis信息
+
+# 启动生产环境
+cd ../deployment
+docker-compose -f docker-compose.prod.yml up -d
+# 包含MySQL、Redis、后端API和Nginx反向代理
+```
+
+**方式二：手动生产部署**
+```bash
+cd backend
+
+# 安装生产依赖（忽略开发依赖）
+npm install --production
+
+# 构建项目
+npm run build
+
+# 配置生产环境
+cp .env.production.example .env.production
+# 编辑 .env.production 文件
+
+# 启动生产服务
+npm run start:prod
+```
+
+**方式三：使用生产Docker镜像**
+```bash
+# 构建生产镜像
+docker build -f backend/Dockerfile.prod -t wechat-shop-backend:latest .
+
+# 运行容器
+docker run -d \
+  -p 3000:3000 \
+  -v $(pwd)/backend/.env.production:/app/.env \
+  -v uploads:/var/uploads \
+  --name wechat-shop-backend \
+  wechat-shop-backend:latest
+```
+
+#### 端口说明
+- **开发环境**：后端API运行在 `http://localhost:3000`
+- **测试环境**：后端API运行在 `http://localhost:3001`
+- **生产环境**：默认运行在 `http://localhost:3000`（可通过Nginx配置域名）
+
+#### 数据库初始化
+- **开发环境**：TypeORM自动同步（`synchronize: true`）
+- **测试环境**：Docker Compose自动执行 `docs/database/schema.sql`
+- **生产环境**：
+  ```bash
+  # 首次部署执行SQL脚本
+  mysql -h <host> -u <user> -p < docs/database/schema.sql
+  
+  # 后续更新使用迁移
+  npm run migration:generate -- -n <迁移名称>
+  npm run migration:run
+  ```
 
 ### 2. 微信小程序开发
 
@@ -178,12 +349,90 @@ npm run migration:run
 mysql -u root -p < docs/数据库设计/schema.sql
 ```
 
+### 5. 测试
+
+```bash
+# 运行后端测试
+cd backend
+npm test
+
+# 运行测试并生成覆盖率报告
+npm run test:cov
+
+# 使用Docker Compose运行测试环境
+cd deployment
+docker-compose -f docker-compose.test.yml up -d
+```
+
+### 6. 健康检查
+
+启动后端服务后，可以通过以下端点检查系统健康状态：
+
+- **完整健康检查**：`GET http://localhost:3000/health`
+  - 检查数据库、Redis、内存等依赖服务状态
+- **简单状态检查**：`GET http://localhost:3000/health/simple`
+  - 返回应用基本状态信息
+- **版本信息**：`GET http://localhost:3000/health/version`
+  - 返回应用版本和运行环境信息
+
 ## API文档
 
 启动后端服务后，访问以下地址查看API文档：
 
 - Swagger UI: http://localhost:3000/api/docs
 - OpenAPI JSON: http://localhost:3000/api/docs-json
+
+健康检查端点（`/health`、`/health/simple`、`/health/version`）已集成到Swagger文档中。
+
+## 脚本工具参考
+
+项目提供了丰富的自动化脚本，位于 `scripts/` 目录下，可大幅提升开发和测试效率：
+
+### 测试环境脚本 (`scripts/test/`)
+
+| 脚本文件 | 功能描述 | 使用场景 |
+|----------|----------|----------|
+| `run-tests.sh` | **完整测试套件**：设置环境 → 运行测试 → 清理环境 | 自动化测试、CI/CD流水线 |
+| `setup-test-env.sh` | 设置完整的测试环境（MySQL、Redis、后端服务） | 手动测试环境搭建 |
+| `cleanup-test-env.sh` | 清理测试环境和所有数据卷 | 测试完成后资源清理 |
+| `health-check.sh` | 全面的健康检查：服务状态、端口、API端点、系统资源 | 环境验证和故障排查 |
+
+**使用示例**：
+```bash
+# 运行完整测试套件（推荐）
+./scripts/test/run-tests.sh
+
+# 仅设置测试环境
+./scripts/test/setup-test-env.sh
+
+# 运行健康检查
+./scripts/test/health-check.sh
+```
+
+### 开发工具脚本
+
+| 脚本文件 | 功能描述 | 使用场景 |
+|----------|----------|----------|
+| `download-images.sh` | 下载开发用示例图片到 `public/uploads/` 目录 | 本地开发、演示环境 |
+| `.claude/commands/test-command.sh` | Claude Code测试命令 | 开发工具集成 |
+
+**使用示例**：
+```bash
+# 下载示例图片库
+./scripts/download-images.sh
+# 包含商品图片、分类图标、用户头像、轮播图等
+```
+
+### 脚本输出说明
+- **日志文件**：脚本运行日志保存在 `scripts/test/logs/` 目录
+- **测试报告**：测试结果保存在 `scripts/test/reports/` 目录
+- **环境信息**：测试环境信息保存在 `scripts/test/env-info.txt`
+
+### 环境变量要求
+部分脚本需要设置 `DOCKER_HOST` 环境变量：
+```bash
+export DOCKER_HOST=unix:///var/run/docker.sock
+```
 
 ## 部署指南
 
